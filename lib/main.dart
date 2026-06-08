@@ -36,20 +36,40 @@ class SecurityGateway extends StatefulWidget {
   State<SecurityGateway> createState() => _SecurityGatewayState();
 }
 
-class _SecurityGatewayState extends State<SecurityGateway> {
+class _SecurityGatewayState extends State<SecurityGateway>
+    with WidgetsBindingObserver {
   SecurityStatus? _securityStatus;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    // Escuchamos el ciclo de vida para re-verificar al volver del segundo plano
+    // (p. ej. tras apagar/encender el Fake GPS desde sus ajustes).
+    WidgetsBinding.instance.addObserver(this);
     _runSecurityCheck();
   }
 
-  Future<void> _runSecurityCheck() async {
-    setState(() {
-      _isLoading = true;
-    });
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Re-verificación silenciosa: sin pantalla de carga para no parpadear.
+      _runSecurityCheck(showLoading: false);
+    }
+  }
+
+  Future<void> _runSecurityCheck({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     final status = await SecurityChecker.checkDeviceSecurity();
 
